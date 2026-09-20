@@ -1,78 +1,72 @@
-﻿# Sentinel-4G: ESP32 Remote Cellular Security & Environmental Monitor
+﻿# SENTINEL-4G: Military Tactical Asset Tracking & C2 Defense Operations
 
-A battery-powered, long-range remote monitoring and intrusion detection system built on **ESP32**, **A7670C LTE Cat-1 cellular**, **NEO-6M GPS**, and environmental sensors.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Ankur1212s/esp32-sentinel-monitor)
 
----
+A 24/7 cloud-native remote asset tracking, perimeter security surveillance, and multi-sensor environmental telemetry system built for defense and high-value asset monitoring.
 
-## ⚡ Features
-- **Instant SMS Intrusion Alerts**: Uses HC-SR04 ultrasonic distance sensing with baseline motion detection to send real-time SMS alerts containing clickable Google Maps links.
-- **Cellular Telemetry Upload**: Streams live temperature, humidity, gas quality, and GPS coordinates over 4G LTE to a central web dashboard.
-- **Interactive Web Dashboard**: Built with FastAPI, Leaflet.js, Chart.js, and Tailwind CSS. Shows live GPS location tracking, historical sensor trends, and security breach status.
-- **Battery Powered**: Powered by a 3.7V 7600mAh Li-ion battery pack with a 5A BMS and an IP2312 fast-charge module.
+Powered by **ESP32**, **A7670C LTE Cat-1 cellular**, **NEO-6M GPS**, **HC-SR04 ultrasonic radar**, and **Next.js 14** hosted on Vercel.
 
 ---
 
-## 🛠️ Hardware Components
-| Component | Purpose | Interface / Operating Voltage |
+## ⚡ Tactical Capabilities
+
+- **24/7 Cloud Availability**: Fully deployed on Vercel with zero requirement for a local laptop, local Python server, or SSH tunnel.
+- **Direct 4G Telemetry Ingestion**: The ESP32 device posts telemetry directly over Airtel 4G to `https://<your-project>.vercel.app/api/readings`.
+- **Tactical Geospatial Satellite Map**: Real-time Leaflet GPS tracking with dark tactical radar overlay, asset breadcrumb trail, and direct coordinate navigation.
+- **Autonomous Perimeter Defense**: HC-SR04 ultrasonic radar with baseline calibration. Fires SMS alerts with Google Maps links on intrusion and triggers a DEFCON 1 visual alarm on the cloud dashboard.
+- **NBC / Hazardous Environmental Sensing**: Real-time air quality index monitoring (MQ-135) and temperature/humidity diagnostics (DHT11).
+- **Hardened Power Subsystem**: 3.7V 7600mAh Li-ion battery pack with 1S 5A BMS protection, 3A IP2312 fast charger, and star-topology grounding.
+
+---
+
+## 🚀 1-Click Cloud Deployment to Vercel (No Coding Needed)
+
+1. Open [vercel.com](https://vercel.com) and log in with your GitHub account.
+2. Click **"Add New..."** $\rightarrow$ **"Project"**.
+3. Select your repository: **`Ankur1212s/esp32-sentinel-monitor`**.
+4. Click **Deploy**. Vercel will build and launch your dashboard in ~60 seconds!
+5. Your dashboard is now permanently live at:
+   `https://esp32-sentinel-monitor.vercel.app`
+
+---
+
+## 🔌 Hardware Pinout (ESP32)
+
+| Module Pin | ESP32 Pin / Rail | Purpose / Description |
 | :--- | :--- | :--- |
-| **ESP32 DevKit** | Main Microcontroller | 5V VIN / 3.3V Logic |
-| **A7670C** | 4G LTE Cat-1 Modem (SMS & HTTP) | UART (115200 baud) / Direct VBAT (3.7V) |
-| **NEO-6M** | GPS Location & Tracking | Hardware UART1 (9600 baud) / 3.3V |
-| **HC-SR04** | Ultrasonic Intrusion Detection | GPIO (with 5V→3.3V voltage divider on ECHO) |
-| **DHT11** | Temperature & Humidity | Single-bus GPIO / 3.3V |
-| **MQ-135** | Air Quality / Gas Sensing | ADC Analog Input / 5V (heater) |
-| **MT3608** | Step-Up Boost Converter | 3.7V In → 5.0V Out |
-| **IP2312** | Fast Charger Board | 3A 1S Li-ion USB-C Charging |
-| **Battery Pack** | 3.7V 7600mAh Li-ion (Parallel) | Protected with 1S 5A BMS |
-
----
-
-## 🔌 Pin Mapping (ESP32)
-
-| Module Pin | ESP32 Pin / Rail | Notes |
-| :--- | :--- | :--- |
-| **A7670C TX** | **RX0 (GPIO 3)** | Modem Serial (115200 baud) |
-| **A7670C RX** | **TX0 (GPIO 1)** | Modem Serial (115200 baud) |
-| **A7670C VBAT** | **Battery (+)** | 1000µF 25V capacitor in parallel |
-| **NEO-6M TX** | **GPIO 25** | Hardware UART1 RX |
-| **NEO-6M RX** | **GPIO 26** | Hardware UART1 TX |
-| **HC-SR04 TRIG** | **GPIO 32** | Digital Output |
-| **HC-SR04 ECHO** | **GPIO 33** | Via 1kΩ / 2kΩ resistor voltage divider |
+| **A7670C TX** | **RX0 (GPIO 3)** | Modem Hardware UART (115200 baud) |
+| **A7670C RX** | **TX0 (GPIO 1)** | Modem Hardware UART (115200 baud) |
+| **A7670C VBAT** | **Battery (+)** Direct | 1000µF 25V capacitor in parallel |
+| **NEO-6M TX** | **GPIO 25** | Hardware UART1 RX (9600 baud) |
+| **NEO-6M RX** | **GPIO 26** | Hardware UART1 TX (9600 baud) |
+| **HC-SR04 TRIG** | **GPIO 32** | Distance trigger pulse |
+| **HC-SR04 ECHO** | **GPIO 33** | Return pulse (via 1kΩ / 2kΩ divider) |
 | **DHT11 DATA** | **GPIO 4** | Internal pull-up enabled |
-| **MQ135 A0** | **GPIO 34** | ADC1 Analog Input |
-| **Common GND** | **Battery (-)** | Star-topology tied at battery negative |
+| **MQ135 A0** | **GPIO 34** | ADC1 Analog Input (0-3.3V) |
+| **5V Sensors Rail** | **MT3608 5V Out** | Powers ESP32 VIN, MQ135 heater, HC-SR04 |
+| **Star GND** | **Battery (-)** Direct | Common ground tied at battery negative |
 
 ---
 
-## 🚀 Getting Started
+## 📡 API Endpoints (Vercel Serverless)
 
-### 1. Firmware Setup (ESP32)
-1. Open `firmware/esp32_sentinel/esp32_sentinel.ino` in Arduino IDE.
-2. Install required libraries via Library Manager:
-   - `DHT sensor library` (Adafruit)
-   - `Adafruit Unified Sensor`
-   - `TinyGPSPlus` (Mikal Hart)
-3. Update configuration values:
-   ```cpp
-   #define TARGET_PHONE_NUMBER "+91XXXXXXXXXX" // Your phone number
-   const char* SERVER_URL = "https://your-domain.com/api/readings";
-   ```
-4. Select board **ESP32 Dev Module** and upload.
-
-### 2. Backend & Dashboard Setup
-1. Navigate to the `backend` folder:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-2. Start the local server:
-   ```bash
-   python server.py
-   ```
-3. Open `http://localhost:8000` in your browser.
-4. Expose the port to 4G using a tunnel (e.g. `ssh -R 80:localhost:8000 a.pinggy.io` or `localhost.run`).
+- **`POST /api/readings`**: Ingests telemetry from ESP32 over 4G LTE.
+  ```json
+  {
+    "unit_id": "UNIT-ALPHA-01",
+    "dist": 28.4,
+    "temp": 27.2,
+    "hum": 55.0,
+    "gas": 420,
+    "lat": 28.6139,
+    "lon": 77.2090,
+    "alert": false
+  }
+  ```
+- **`GET /api/readings`**: Returns live telemetry records and history for the dashboard.
+- **`GET /api/alerts`**: Returns recent perimeter breach events.
 
 ---
 
 ## 📄 License
-MIT License
+MIT License - Defense & Tactical Surveillance Open Source

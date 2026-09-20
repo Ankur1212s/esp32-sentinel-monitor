@@ -3,11 +3,17 @@
 #include <HardwareSerial.h>
 
 // ================= USER CONFIGURATION =================
-#define TARGET_PHONE_NUMBER "+91XXXXXXXXXX" // Enter recipient mobile number with country code
-const char* SERVER_URL = "https://your-tunnel-or-server.domain/api/readings";
+// 1. Mobile number to receive intrusion SMS (with country code)
+#define TARGET_PHONE_NUMBER "+91XXXXXXXXXX" 
 
+// 2. Put your permanent Vercel domain here after deployment:
+// e.g., "https://esp32-sentinel-monitor.vercel.app/api/readings"
+const char* SERVER_URL = "https://esp32-sentinel-monitor.vercel.app/api/readings";
+
+// 3. Settings
+#define UNIT_CALLSIGN         "UNIT-ALPHA-01"
 #define MOTION_SENSITIVITY_CM 15.0   // Trigger if someone gets 15cm closer than baseline
-#define UPLOAD_INTERVAL_MS    10000  // Upload to server every 10 seconds
+#define UPLOAD_INTERVAL_MS    10000  // Upload telemetry to cloud every 10 seconds
 #define SMS_COOLDOWN_MS       45000  // Minimum cooldown between SMS alerts
 // ======================================================
 
@@ -22,7 +28,7 @@ const char* SERVER_URL = "https://your-tunnel-or-server.domain/api/readings";
 
 DHT dht(DHTPIN, DHTTYPE);
 TinyGPSPlus gps;
-HardwareSerial gpsSerial(1);
+HardwareSerial gpsSerial(1); // Hardware UART1 for GPS
 
 unsigned long lastUploadTime = 0;
 unsigned long lastSmsTime = 0;
@@ -56,14 +62,16 @@ void sendIntrusionSMS(float currentDist) {
   Serial.println("\"");
   delay(800);
 
-  Serial.println("🚨 ALERT: Intrusion Motion Detected!");
+  Serial.println("🚨 TACTICAL ALERT: Intrusion Motion Detected!");
+  Serial.print("Unit: ");
+  Serial.println(UNIT_CALLSIGN);
   Serial.print("Current Distance: ");
   Serial.print(currentDist, 1);
   Serial.println(" cm");
   Serial.print("Baseline was: ");
   Serial.print(baselineDistance, 1);
   Serial.println(" cm");
-  Serial.print("Location: ");
+  Serial.print("Tactical Grid: ");
   Serial.println(getGoogleMapsLink());
   
   Serial.write(26); // ASCII 26 (Ctrl+Z)
@@ -81,6 +89,10 @@ void postTelemetryOver4G(String json) {
   Serial.print(SERVER_URL);
   Serial.println("\"");
   delay(500);
+
+  // Enable SSL profile on A7670C for HTTPS
+  Serial.println("AT+HTTPPARA=\"SSLCFG\",0");
+  delay(300);
 
   Serial.println("AT+HTTPPARA=\"CONTENT\",\"application/json\"");
   delay(500);
@@ -160,13 +172,14 @@ void loop() {
     int gas = analogRead(MQ135_PIN);
 
     String payload = "{";
+    payload += "\"unit_id\":\"" + String(UNIT_CALLSIGN) + "\",";
     payload += "\"dist\":" + String(currentDist > 0 ? currentDist : baselineDistance, 1) + ",";
     payload += "\"temp\":" + String(isnan(temp) ? 0.0 : temp, 1) + ",";
     payload += "\"hum\":" + String(isnan(hum) ? 0.0 : hum, 1) + ",";
     payload += "\"gas\":" + String(gas) + ",";
     payload += "\"lat\":" + String(gps.location.isValid() ? String(gps.location.lat(), 6) : "0.0") + ",";
     payload += "\"lon\":" + String(gps.location.isValid() ? String(gps.location.lng(), 6) : "0.0") + ",";
-    payload += "\"alert\":" + String(motionDetected ? "1" : "0");
+    payload += "\"alert\":" + String(motionDetected ? "true" : "false");
     payload += "}";
 
     postTelemetryOver4G(payload);
