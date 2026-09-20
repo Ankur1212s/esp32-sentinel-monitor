@@ -4,10 +4,11 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 
 interface TacticalMapProps {
-  lat: number;
-  lon: number;
+  lat?: number;
+  lon?: number;
   unitId: string;
   isAlert: boolean;
+  isOnline: boolean;
   trailCoords: [number, number][];
 }
 
@@ -16,26 +17,30 @@ export default function TacticalMap({
   lon,
   unitId,
   isAlert,
+  isOnline,
   trailCoords,
 }: TacticalMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const trailPolylineRef = useRef<L.Polyline | null>(null);
-  const radarCircleRef = useRef<L.Circle | null>(null);
+
+  const hasCoords = Boolean(lat && lon && (lat !== 0 || lon !== 0));
+  const centerLat = hasCoords ? lat! : 20.5937; // Center of India default
+  const centerLon = hasCoords ? lon! : 78.9629;
+  const zoomLevel = hasCoords ? 14 : 5;
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Check if map already initialized
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [lat || 28.6139, lon || 77.2090],
-        zoom: 14,
+        center: [centerLat, centerLon],
+        zoom: zoomLevel,
         zoomControl: true,
       });
 
-      // Dark Tactical Tiles
+      // Professional Dark CartoDB Tiles
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
         {
@@ -45,84 +50,67 @@ export default function TacticalMap({
         }
       ).addTo(map);
 
-      // Tactical Custom Icon
-      const iconHtml = `
-        <div class="relative flex items-center justify-center">
-          <div class="w-6 h-6 rounded-full ${
-            isAlert ? "bg-red-500 animate-ping" : "bg-emerald-500 animate-pulse"
-          } opacity-75 absolute"></div>
-          <div class="w-4 h-4 rounded-full ${
-            isAlert ? "bg-red-600 border-2 border-white" : "bg-emerald-400 border-2 border-emerald-950"
-          } relative z-10 shadow-lg"></div>
-        </div>
-      `;
+      if (hasCoords) {
+        const iconHtml = `
+          <div class="relative flex items-center justify-center">
+            <div class="w-6 h-6 rounded-full ${
+              isAlert ? "bg-rose-500 animate-ping" : isOnline ? "bg-emerald-500 animate-pulse" : "bg-zinc-500"
+            } opacity-75 absolute"></div>
+            <div class="w-3.5 h-3.5 rounded-full ${
+              isAlert ? "bg-rose-600 border-2 border-white" : isOnline ? "bg-emerald-500 border-2 border-zinc-900" : "bg-zinc-600 border-2 border-zinc-800"
+            } relative z-10 shadow-lg"></div>
+          </div>
+        `;
 
-      const customIcon = L.divIcon({
-        className: "tactical-marker",
-        html: iconHtml,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      });
+        const customIcon = L.divIcon({
+          className: "custom-marker",
+          html: iconHtml,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
 
-      const marker = L.marker([lat || 28.6139, lon || 77.2090], {
-        icon: customIcon,
-      }).addTo(map);
+        const marker = L.marker([lat!, lon!], { icon: customIcon }).addTo(map);
+        marker.bindPopup(`<b>${unitId}</b><br>Lat: ${lat?.toFixed(5)}<br>Lon: ${lon?.toFixed(5)}`);
 
-      const circle = L.circle([lat || 28.6139, lon || 77.2090], {
-        radius: 200,
-        color: isAlert ? "#ef4444" : "#10b981",
-        fillColor: isAlert ? "#ef4444" : "#10b981",
-        fillOpacity: 0.12,
-        weight: 1.5,
-        dashArray: "4, 6",
-      }).addTo(map);
+        const polyline = L.polyline(trailCoords.length > 0 ? trailCoords : [[lat!, lon!]], {
+          color: isAlert ? "#f43f5e" : "#10b981",
+          weight: 2.5,
+          opacity: 0.8,
+        }).addTo(map);
 
-      const polyline = L.polyline(trailCoords.length > 0 ? trailCoords : [[lat, lon]], {
-        color: "#10b981",
-        weight: 3,
-        opacity: 0.8,
-        dashArray: "3, 6",
-      }).addTo(map);
+        markerRef.current = marker;
+        trailPolylineRef.current = polyline;
+      }
 
       mapInstanceRef.current = map;
-      markerRef.current = marker;
-      radarCircleRef.current = circle;
-      trailPolylineRef.current = polyline;
     } else {
-      // Update existing map
       const map = mapInstanceRef.current;
-      if (lat && lon && (lat !== 0 || lon !== 0)) {
-        map.panTo([lat, lon], { animate: true, duration: 1 });
+      if (hasCoords) {
+        map.setView([lat!, lon!], 14, { animate: true });
+
+        const iconHtml = `
+          <div class="relative flex items-center justify-center">
+            <div class="w-6 h-6 rounded-full ${
+              isAlert ? "bg-rose-500 animate-ping" : isOnline ? "bg-emerald-500 animate-pulse" : "bg-zinc-500"
+            } opacity-75 absolute"></div>
+            <div class="w-3.5 h-3.5 rounded-full ${
+              isAlert ? "bg-rose-600 border-2 border-white" : isOnline ? "bg-emerald-500 border-2 border-zinc-900" : "bg-zinc-600 border-2 border-zinc-800"
+            } relative z-10 shadow-lg"></div>
+          </div>
+        `;
+
+        const customIcon = L.divIcon({
+          className: "custom-marker",
+          html: iconHtml,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
 
         if (markerRef.current) {
-          markerRef.current.setLatLng([lat, lon]);
-
-          const iconHtml = `
-            <div class="relative flex items-center justify-center">
-              <div class="w-6 h-6 rounded-full ${
-                isAlert ? "bg-red-500 animate-ping" : "bg-emerald-500 animate-pulse"
-              } opacity-75 absolute"></div>
-              <div class="w-4 h-4 rounded-full ${
-                isAlert ? "bg-red-600 border-2 border-white" : "bg-emerald-400 border-2 border-emerald-950"
-              } relative z-10 shadow-lg"></div>
-            </div>
-          `;
-          markerRef.current.setIcon(
-            L.divIcon({
-              className: "tactical-marker",
-              html: iconHtml,
-              iconSize: [24, 24],
-              iconAnchor: [12, 12],
-            })
-          );
-        }
-
-        if (radarCircleRef.current) {
-          radarCircleRef.current.setLatLng([lat, lon]);
-          radarCircleRef.current.setStyle({
-            color: isAlert ? "#ef4444" : "#10b981",
-            fillColor: isAlert ? "#ef4444" : "#10b981",
-          });
+          markerRef.current.setLatLng([lat!, lon!]);
+          markerRef.current.setIcon(customIcon);
+        } else {
+          markerRef.current = L.marker([lat!, lon!], { icon: customIcon }).addTo(map);
         }
 
         if (trailPolylineRef.current && trailCoords.length > 0) {
@@ -130,37 +118,43 @@ export default function TacticalMap({
         }
       }
     }
-
-    return () => {
-      // Clean up on component unmount
-    };
-  }, [lat, lon, isAlert, trailCoords, unitId]);
+  }, [lat, lon, hasCoords, isAlert, isOnline, trailCoords, unitId]);
 
   return (
-    <div className="relative w-full h-full min-h-[380px] rounded-lg overflow-hidden border border-slate-800">
-      <div ref={mapContainerRef} className="w-full h-full min-h-[380px]" />
+    <div className="relative w-full h-full min-h-[420px] rounded-xl overflow-hidden border border-zinc-800/80 bg-zinc-950">
+      <div ref={mapContainerRef} className="w-full h-full min-h-[420px]" />
       
-      {/* Tactical HUD Overlay Elements */}
-      <div className="absolute top-3 left-3 z-[1000] bg-slate-950/85 backdrop-blur border border-slate-800 rounded px-3 py-1.5 text-xs font-mono text-slate-300 pointer-events-none shadow-md">
+      {/* Map Overlay Badge */}
+      <div className="absolute top-3 left-3 z-[1000] bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono shadow-md">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span className="text-emerald-400 font-bold tracking-wider">GEOSPATIAL RADAR: ACTIVE</span>
+          <span className={`w-2 h-2 rounded-full ${hasCoords && isOnline ? "bg-emerald-500 animate-ping" : "bg-zinc-500"}`}></span>
+          <span className="font-semibold text-zinc-200">
+            {hasCoords ? "GPS FIX ACQUIRED" : "AWAITING GPS TELEMETRY"}
+          </span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-0.5">
-          COORD: {lat ? lat.toFixed(5) : "--"}, {lon ? lon.toFixed(5) : "--"}
-        </div>
+        {hasCoords ? (
+          <div className="text-[11px] text-zinc-400 mt-0.5">
+            {lat?.toFixed(5)}, {lon?.toFixed(5)}
+          </div>
+        ) : (
+          <div className="text-[10px] text-zinc-500 mt-0.5">
+            Unit powered off or searching for satellites
+          </div>
+        )}
       </div>
 
-      <div className="absolute bottom-3 right-3 z-[1000] bg-slate-950/85 backdrop-blur border border-slate-800 rounded px-2.5 py-1 text-[11px] font-mono text-blue-400 hover:text-blue-300 shadow">
-        <a
-          href={`https://maps.google.com/?q=${lat},${lon}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 underline"
-        >
-          <span>Tactical Satellite View ↗</span>
-        </a>
-      </div>
+      {hasCoords && (
+        <div className="absolute bottom-3 right-3 z-[1000] bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-sky-400 hover:text-sky-300 shadow">
+          <a
+            href={`https://maps.google.com/?q=${lat},${lon}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 font-medium"
+          >
+            <span>Open in Google Maps ↗</span>
+          </a>
+        </div>
+      )}
     </div>
   );
 }
