@@ -3,24 +3,18 @@
 import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
-  ShieldAlert,
-  ShieldCheck,
   Radio,
   Gauge,
   Thermometer,
   Droplets,
   Wind,
-  BatteryCharging,
   Signal,
   MapPin,
-  RefreshCw,
   Clock,
   Terminal,
   Activity,
-  Cpu,
   WifiOff,
   AlertTriangle,
-  Layers,
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -79,7 +73,6 @@ export default function MilitaryAssetDashboard() {
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("Checking...");
   const [isArmActive, setIsArmActive] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "map" | "telemetry" | "logs">("overview");
 
   const fetchTelemetry = async () => {
     try {
@@ -87,9 +80,9 @@ export default function MilitaryAssetDashboard() {
       if (!res.ok) return;
       const data = await res.json();
       setIsOnline(Boolean(data.is_online));
-      if (data.readings) {
+      if (data.readings && data.readings.length > 0) {
         setReadings(data.readings);
-        setLatest(data.latest || null);
+        setLatest(data.latest || data.readings[data.readings.length - 1]);
         setLastSyncTime(new Date().toLocaleTimeString());
       }
     } catch (err) {
@@ -199,7 +192,7 @@ export default function MilitaryAssetDashboard() {
                   SENTINEL-4G
                 </span>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                  Asset Unit #01
+                  {latest?.unit_id || "Asset #01"}
                 </span>
               </div>
               <p className="text-xs text-zinc-400">
@@ -222,7 +215,7 @@ export default function MilitaryAssetDashboard() {
                   isOnline ? "bg-emerald-500 animate-ping" : "bg-zinc-500"
                 }`}
               ></span>
-              <span>{isOnline ? "HARDWARE ONLINE" : "HARDWARE OFFLINE"}</span>
+              <span>{isOnline ? "HARDWARE ONLINE" : "STANDBY / OFFLINE"}</span>
             </div>
 
             <button
@@ -240,12 +233,12 @@ export default function MilitaryAssetDashboard() {
       </header>
 
       {/* Real-time Intrusion Alert Banner */}
-      {isBreached && isOnline && (
+      {isBreached && (
         <div className="bg-rose-600 text-white text-xs font-semibold px-6 py-2.5 flex items-center justify-between border-b border-rose-500 shadow-md">
           <div className="flex items-center gap-2.5 max-w-7xl mx-auto w-full">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>
-              Perimeter Breach Detected: Motion recorded at {latest?.dist?.toFixed(1)} cm. SMS dispatched to registered device.
+              Perimeter Breach Detected: Target proximity at {latest?.dist?.toFixed(1) || "--"} cm.
             </span>
             {latest?.lat && (
               <a
@@ -263,20 +256,7 @@ export default function MilitaryAssetDashboard() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto w-full p-4 lg:p-8 space-y-6 flex-1">
-        {/* If Offline, show clean friendly banner */}
-        {!isOnline && (
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 flex items-center gap-3.5 text-zinc-400 text-xs">
-            <WifiOff className="w-5 h-5 text-zinc-500 flex-shrink-0" />
-            <div>
-              <span className="font-semibold text-zinc-200">System is currently in Standby / Offline mode.</span>
-              <p className="text-zinc-400 mt-0.5">
-                Power on your ESP32 device with the battery in the field. As soon as the A7670C module sends its first telemetry packet over Airtel 4G, live readings and GPS coordinates will appear automatically.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Top KPI Cards (Clean SaaS style like Harvest Link) */}
+        {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {/* 1. Proximity Sensor */}
           <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-between">
@@ -286,12 +266,12 @@ export default function MilitaryAssetDashboard() {
             </div>
             <div className="my-2 flex items-baseline gap-1">
               <span className="text-3xl font-bold text-zinc-100">
-                {isOnline && latest?.dist !== undefined ? latest.dist.toFixed(1) : "--"}
+                {latest?.dist !== undefined && latest.dist > 0 ? latest.dist.toFixed(1) : "--"}
               </span>
               <span className="text-xs text-zinc-400 font-medium">cm</span>
             </div>
             <div className="text-[11px] text-zinc-500">
-              {isOnline ? ((latest?.dist || 0) < 35 && (latest?.dist || 0) > 0 ? "Motion detected" : "Perimeter clear") : "Sensor offline"}
+              {latest?.dist !== undefined ? ((latest.dist < 15 && latest.dist > 0) ? "Breach detected" : "Perimeter clear") : "Awaiting data"}
             </div>
           </div>
 
@@ -303,12 +283,12 @@ export default function MilitaryAssetDashboard() {
             </div>
             <div className="my-2 flex items-baseline gap-1">
               <span className="text-3xl font-bold text-emerald-400">
-                {isOnline && latest?.gas !== undefined ? Math.round(latest.gas) : "--"}
+                {latest?.gas !== undefined ? Math.round(latest.gas) : "--"}
               </span>
               <span className="text-xs text-zinc-400 font-medium">ppm</span>
             </div>
             <div className="text-[11px] text-zinc-500">
-              {isOnline ? "Normal atmospheric range" : "Sensor offline"}
+              {latest?.gas !== undefined ? (latest.gas > 800 ? "Elevated gas" : "Nominal level") : "Awaiting data"}
             </div>
           </div>
 
@@ -320,12 +300,12 @@ export default function MilitaryAssetDashboard() {
             </div>
             <div className="my-2 flex items-baseline gap-1">
               <span className="text-3xl font-bold text-amber-400">
-                {isOnline && latest?.temp !== undefined ? latest.temp.toFixed(1) : "--"}
+                {latest?.temp !== undefined && latest.temp > 0 ? latest.temp.toFixed(1) : "--"}
               </span>
               <span className="text-xs text-zinc-400 font-medium">°C</span>
             </div>
             <div className="text-[11px] text-zinc-500">
-              {isOnline ? "DHT11 ambient thermal" : "Sensor offline"}
+              {latest?.temp !== undefined && latest.temp > 0 ? "DHT11 ambient" : "Check DHT11 wiring"}
             </div>
           </div>
 
@@ -337,24 +317,24 @@ export default function MilitaryAssetDashboard() {
             </div>
             <div className="my-2 flex items-baseline gap-1">
               <span className="text-3xl font-bold text-sky-400">
-                {isOnline && latest?.hum !== undefined ? latest.hum.toFixed(1) : "--"}
+                {latest?.hum !== undefined && latest.hum > 0 ? latest.hum.toFixed(1) : "--"}
               </span>
               <span className="text-xs text-zinc-400 font-medium">%</span>
             </div>
             <div className="text-[11px] text-zinc-500">
-              {isOnline ? "Relative humidity" : "Sensor offline"}
+              {latest?.hum !== undefined && latest.hum > 0 ? "Relative humidity" : "Check DHT11 wiring"}
             </div>
           </div>
 
           {/* 5. Power & Connectivity */}
           <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-between col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between text-zinc-400 text-xs">
-              <span>Battery & 4G Comms</span>
+              <span>Battery & 4G Link</span>
               <Signal className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="my-2 flex items-baseline justify-between">
               <span className="text-2xl font-bold text-zinc-100">
-                {isOnline ? "3.93 V" : "--"}
+                {latest ? "3.93 V" : "--"}
               </span>
               <span className="text-xs font-semibold text-emerald-400">
                 Airtel 4G
@@ -362,14 +342,13 @@ export default function MilitaryAssetDashboard() {
             </div>
             <div className="text-[11px] text-zinc-500 flex justify-between">
               <span>Li-ion 7600mAh</span>
-              <span className="text-zinc-400">{isOnline ? "Connected" : "Disconnected"}</span>
+              <span className="text-zinc-400">{isOnline ? "Active Stream" : "Last Sync"}</span>
             </div>
           </div>
         </div>
 
-        {/* Map & Telemetry Charts Section */}
+        {/* Map & Telemetry Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Map View */}
           <div className="lg:col-span-7 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-5 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -379,7 +358,7 @@ export default function MilitaryAssetDashboard() {
                 </h2>
               </div>
               <span className="text-xs text-zinc-500">
-                {isOnline && latest?.lat ? "Live GPS Coordinates" : "Awaiting Satellite Lock"}
+                {latest?.lat ? "GPS Fix Active" : "Searching Satellites"}
               </span>
             </div>
             <div className="flex-1 w-full min-h-[420px]">
@@ -394,7 +373,6 @@ export default function MilitaryAssetDashboard() {
             </div>
           </div>
 
-          {/* Environmental Chart */}
           <div className="lg:col-span-5 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-5 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -414,7 +392,6 @@ export default function MilitaryAssetDashboard() {
                 <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-xs">
                   <Activity className="w-8 h-8 mb-2 opacity-40" />
                   <span>No telemetry history available yet.</span>
-                  <span className="text-zinc-600 mt-1">Readings will graph automatically when device connects.</span>
                 </div>
               )}
             </div>
@@ -431,7 +408,7 @@ export default function MilitaryAssetDashboard() {
               </h3>
             </div>
             <span className="text-xs text-zinc-500">
-              Last Sync: {lastSyncTime}
+              Last Update: {latest?.timestamp ? latest.timestamp.replace("T", " ").slice(0, 19) : "None"}
             </span>
           </div>
 
@@ -452,7 +429,7 @@ export default function MilitaryAssetDashboard() {
                 {readings.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-zinc-500">
-                      No incoming transmissions recorded yet. Power on your ESP32 device to view live telemetry.
+                      No incoming transmissions recorded yet.
                     </td>
                   </tr>
                 ) : (
@@ -476,7 +453,7 @@ export default function MilitaryAssetDashboard() {
                         {Math.round(r.gas || 0)}
                       </td>
                       <td className="py-2.5 px-3">
-                        {r.temp?.toFixed(1) || "--"}°C / {r.hum?.toFixed(1) || "--"}%
+                        {r.temp > 0 ? `${r.temp.toFixed(1)}°C / ${r.hum.toFixed(1)}%` : "Check Sensor"}
                       </td>
                       <td className="py-2.5 px-3 text-zinc-400">
                         {r.lat ? `${r.lat.toFixed(4)}, ${r.lon.toFixed(4)}` : "Searching"}
