@@ -4,7 +4,7 @@
 
 // ================= USER CONFIGURATION =================
 // Your permanent 24/7 Vercel cloud endpoint
-const char* SERVER_URL = "https://esp32-sentinel-monitor.vercel.app/api/readings";
+const char* SERVER_URL = "https://esp32-sentinel-monitor-187t-ankur1212s.vercel.app/api/readings";
 
 #define UNIT_CALLSIGN         "UNIT-01"
 #define MOTION_SENSITIVITY_CM 15.0   // Trigger intrusion alert if object gets 15cm closer than baseline
