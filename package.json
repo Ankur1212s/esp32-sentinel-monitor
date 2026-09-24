@@ -16,7 +16,8 @@
     "leaflet": "^1.9.4",
     "react-leaflet": "^4.2.1",
     "chart.js": "^4.4.3",
-    "react-chartjs-2": "^5.2.0"
+    "react-chartjs-2": "^5.2.0",
+    "mongodb": "^6.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
