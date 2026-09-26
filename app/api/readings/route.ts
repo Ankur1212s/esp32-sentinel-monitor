@@ -14,6 +14,7 @@ export interface TelemetryReading {
   lat: number;
   lon: number;
   alert: boolean;
+  motion?: boolean;
   battery_mv?: number;
   signal_rssi?: number;
 }
@@ -32,6 +33,41 @@ export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
 
+    let lat = parseFloat(data.lat ?? 0);
+    let lon = parseFloat(data.lon ?? 0);
+    let locSource = (lat !== 0 && lon !== 0) ? "GPS" : "SEARCHING";
+
+    // Indoor Cellular Carrier Geolocation Fallback
+    if (lat === 0 && lon === 0) {
+      const vLat = req.headers.get("x-vercel-ip-latitude");
+      const vLon = req.headers.get("x-vercel-ip-longitude");
+      if (vLat && vLon && parseFloat(vLat) !== 0 && parseFloat(vLon) !== 0) {
+        lat = parseFloat(vLat);
+        lon = parseFloat(vLon);
+        locSource = "CELLULAR-LBS";
+      } else {
+        const forwarded = req.headers.get("x-forwarded-for");
+        const clientIp = forwarded ? forwarded.split(",")[0].trim() : null;
+        if (clientIp && !clientIp.startsWith("127.") && !clientIp.startsWith("192.168.")) {
+          try {
+            const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,lat,lon,city`, {
+              signal: AbortSignal.timeout(1500),
+            });
+            if (geoRes.ok) {
+              const geoData = await geoRes.json();
+              if (geoData.status === "success" && geoData.lat && geoData.lon) {
+                lat = geoData.lat;
+                lon = geoData.lon;
+                locSource = "CELLULAR-LBS";
+              }
+            }
+          } catch (e) {
+            // Silently ignore geo lookup error
+          }
+        }
+      }
+    }
+
     const reading: TelemetryReading = {
       id: "tlm-" + Date.now(),
       timestamp: new Date().toISOString(),
@@ -40,9 +76,10 @@ export async function POST(req: NextRequest) {
       temp: parseFloat(data.temp ?? 0),
       hum: parseFloat(data.hum ?? 0),
       gas: parseFloat(data.gas ?? 0),
-      lat: parseFloat(data.lat ?? 0),
-      lon: parseFloat(data.lon ?? 0),
+      lat: lat,
+      lon: lon,
       alert: Boolean(data.alert === true || data.alert === "true" || data.alert === 1 || data.alert === "1"),
+      motion: Boolean(data.motion === true || data.motion === "true" || data.motion === 1 || data.motion === "1"),
       battery_mv: data.battery_mv ? parseInt(data.battery_mv) : 3930,
       signal_rssi: data.signal_rssi ? parseInt(data.signal_rssi) : 22,
     };

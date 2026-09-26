@@ -63,6 +63,7 @@ interface Reading {
   lat: number;
   lon: number;
   alert: boolean;
+  motion?: boolean;
   battery_mv?: number;
   signal_rssi?: number;
 }
@@ -238,7 +239,7 @@ export default function MilitaryAssetDashboard() {
           <div className="flex items-center gap-2.5 max-w-7xl mx-auto w-full">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>
-              Perimeter Breach Detected: Target proximity at {latest?.dist?.toFixed(1) || "--"} cm.
+              Perimeter Breach Detected: PIR motion detected.
             </span>
             {latest?.lat && (
               <a
@@ -258,20 +259,19 @@ export default function MilitaryAssetDashboard() {
       <main className="max-w-7xl mx-auto w-full p-4 lg:p-8 space-y-6 flex-1">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          {/* 1. Proximity Sensor */}
+          {/* 1. PIR Sensor */}
           <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between text-zinc-400 text-xs">
-              <span>Proximity Radar</span>
+              <span>PIR Motion</span>
               <Activity className="w-4 h-4 text-zinc-500" />
             </div>
             <div className="my-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-zinc-100">
-                {latest?.dist !== undefined && latest.dist > 0 ? latest.dist.toFixed(1) : "--"}
+              <span className={`text-3xl font-bold ${latest?.motion || latest?.alert ? "text-rose-400" : "text-emerald-400"}`}>
+                {latest ? (latest.motion || latest.alert ? "MOTION" : "CLEAR") : "--"}
               </span>
-              <span className="text-xs text-zinc-400 font-medium">cm</span>
             </div>
             <div className="text-[11px] text-zinc-500">
-              {latest?.dist !== undefined ? ((latest.dist < 15 && latest.dist > 0) ? "Breach detected" : "Perimeter clear") : "Awaiting data"}
+              {latest ? (latest.motion || latest.alert ? "Breach detected" : "Perimeter clear") : "Awaiting data"}
             </div>
           </div>
 
@@ -418,7 +418,7 @@ export default function MilitaryAssetDashboard() {
                 <tr>
                   <th className="py-2.5 px-3">Timestamp</th>
                   <th className="py-2.5 px-3">Unit</th>
-                  <th className="py-2.5 px-3">Proximity</th>
+                  <th className="py-2.5 px-3">PIR Motion</th>
                   <th className="py-2.5 px-3">Gas (PPM)</th>
                   <th className="py-2.5 px-3">Temp / Hum</th>
                   <th className="py-2.5 px-3">Coordinates</th>
@@ -447,7 +447,7 @@ export default function MilitaryAssetDashboard() {
                         {r.unit_id || "UNIT-01"}
                       </td>
                       <td className="py-2.5 px-3">
-                        {r.dist ? r.dist.toFixed(1) : "--"} cm
+                        {r.motion || r.alert ? "Detected" : "Clear"}
                       </td>
                       <td className="py-2.5 px-3 text-emerald-400">
                         {Math.round(r.gas || 0)}
